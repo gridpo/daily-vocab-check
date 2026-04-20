@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String    @id @default(cuid())
+  name       String
+  email      String    @unique
+  password   String
+  role       Role
+  classId    String?
+  class      Class?    @relation(fields: [classId], references: [id])
+  createdAt  DateTime  @default(now())
+  quizzes    Quiz[]
+  mistakes   Mistake[]
+  wordsAdded Word[]    @relation("WordsCreatedBy")
+}
+
+model Class {
+  id       String @id @default(cuid())
+  name     String
+  students User[]
+}
+
+model Word {
+  id         String     @id @default(cuid())
+  spelling   String
+  meaningZh  String
+  pos        String?
+  example    String?
+  difficulty Int        @default(1)
+  unit       String
+  createdBy  String
+  createdAt  DateTime   @default(now())
+  creator    User       @relation("WordsCreatedBy", fields: [createdBy], references: [id])
+  quizItems  QuizItem[]
+  mistakes   Mistake[]
+
+  @@index([unit])
+  @@unique([spelling, unit])
+}
+
+model Quiz {
+  id         String      @id @default(cuid())
+  studentId  String
+  student    User        @relation(fields: [studentId], references: [id])
+  date       DateTime
+  status     QuizStatus  @default(IN_PROGRESS)
+  totalScore Int         @default(0)
+  duration   Int?
+  items      QuizItem[]
+
+  @@unique([studentId, date])
+}
+
+model QuizItem {
+  id            String  @id @default(cuid())
+  quizId         String
+  quiz           Quiz    @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  wordId         String
+  word           Word    @relation(fields: [wordId], references: [id])
+  questionType   String
+  prompt         String
+  correctAnswer  String
+  studentAnswer  String?
+  isCorrect      Boolean?
+}
+
+model Mistake {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation(fields: [studentId], references: [id])
+  wordId      String
+  word        Word     @relation(fields: [wordId], references: [id])
+  wrongCount  Int      @default(1)
+  lastWrongAt DateTime @default(now())
+
+  @@unique([studentId, wordId])
+}
+
+enum Role {
+  TEACHER
+  STUDENT
+}
+
+enum QuizStatus {
+  IN_PROGRESS
+  SUBMITTED
+}
